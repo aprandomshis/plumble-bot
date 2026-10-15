@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Storage } from '@/lib/storage';
 import { PumbleChannel } from '@/types/pumble';
 import { useToast } from '@/components/Toast';
@@ -12,8 +13,8 @@ import {
   UserCheck,
   Plus,
   Users,
-  Settings,
-  Sparkles,
+  RotateCw,
+  Sliders,
 } from 'lucide-react';
 
 export default function ChannelsPage() {
@@ -23,6 +24,7 @@ export default function ChannelsPage() {
   const [newChannelType, setNewChannelType] = useState<'channel' | 'group' | 'dm'>('channel');
   const [editingWelcomeId, setEditingWelcomeId] = useState<string | null>(null);
   const [welcomeText, setWelcomeText] = useState('');
+  const [syncing, setSyncing] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -64,6 +66,39 @@ export default function ChannelsPage() {
     showToast(`Added channel #${newChannel.name}`, 'success');
   };
 
+  const handleSyncFromPumble = async () => {
+    const settings = Storage.getSettings();
+    if (!settings.botToken || !settings.workspaceId || settings.workspaceId === 'ws_demo_98241') {
+      showToast('Please enter your Pumble Bot Token and Workspace ID in Settings first!', 'warning');
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/pumble/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: settings.botToken,
+          workspaceId: settings.workspaceId,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && Array.isArray(data.channels) && data.channels.length > 0) {
+        setChannels(data.channels);
+        Storage.saveChannels(data.channels);
+        showToast(`Synced ${data.channels.length} live channels from Pumble! 🚀`, 'success');
+      } else {
+        showToast(data.error || 'No channels found or token lacks channels:read scope', 'error');
+      }
+    } catch (err: any) {
+      showToast('Error syncing channels: ' + err?.message, 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const openWelcomeEditor = (ch: PumbleChannel) => {
     setEditingWelcomeId(ch.id);
     setWelcomeText(ch.welcomeMessage || 'Welcome to #{channel}, @{user}! 🎉');
@@ -86,14 +121,35 @@ export default function ChannelsPage() {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
-          <Hash className="w-6 h-6 text-sky-400" />
-          Channels & Groups Manager
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">
-          Configure which Pumble channels and private groups allow automated responses, auto-reactions, and member welcome messages.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
+            <Hash className="w-6 h-6 text-sky-400" />
+            Channels &amp; Groups Manager
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
+            Configure automated responses, reactions, and welcome messages across your Pumble channels.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncFromPumble}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-xs font-semibold transition-colors"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Syncing...' : 'Sync Live Channels from Pumble'}</span>
+          </button>
+
+          <Link
+            href="/settings"
+            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition-colors"
+            title="Configure Credentials"
+          >
+            <Sliders className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Quick Add Channel Bar */}

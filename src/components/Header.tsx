@@ -1,17 +1,37 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Storage } from '@/lib/storage';
 import { AccountSettings } from '@/types/pumble';
 import { useToast } from '@/components/Toast';
-import { Power, Bot, Zap, MessageSquare, Smile } from 'lucide-react';
+import { Power, Bot, Zap, MessageSquare, Smile, Settings, AlertCircle } from 'lucide-react';
 
 export function Header() {
   const [settings, setSettings] = useState<AccountSettings | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
-    setSettings(Storage.getSettings());
+    const current = Storage.getSettings();
+    setSettings(current);
+
+    // Sync with server environment variables if available
+    fetch('/api/settings/sync')
+      .then((res) => res.json())
+      .then((serverData) => {
+        if (serverData.configuredOnServer && serverData.workspaceId) {
+          if (current.workspaceId === 'ws_demo_98241' || !current.workspaceId) {
+            const updated: AccountSettings = {
+              ...current,
+              workspaceId: serverData.workspaceId,
+              groqModel: serverData.groqModel || current.groqModel,
+            };
+            setSettings(updated);
+            Storage.saveSettings(updated);
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const toggleMaster = () => {
@@ -54,9 +74,11 @@ export function Header() {
     );
   }
 
+  const isDemo = settings.workspaceId === 'ws_demo_98241' || !settings.botToken;
+
   return (
     <header className="h-16 border-b border-slate-800/80 bg-slate-900/50 backdrop-blur-md px-6 md:px-8 flex items-center justify-between z-20">
-      {/* Left: Bot Status Badge */}
+      {/* Left: Bot Status Badge & Workspace */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2.5">
           <div
@@ -67,9 +89,21 @@ export function Header() {
             }`}
           />
           <span className="font-semibold text-slate-100 text-sm">{settings.botName}</span>
-          <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md font-mono border border-slate-700">
-            {settings.workspaceId}
-          </span>
+
+          {isDemo ? (
+            <Link
+              href="/settings"
+              className="inline-flex items-center gap-1 text-xs bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 px-2.5 py-0.5 rounded-md font-mono border border-amber-500/40 transition-colors"
+              title="Click to connect your real Pumble Workspace & Tokens"
+            >
+              <AlertCircle className="w-3 h-3" />
+              <span>Demo Mode (Connect Account)</span>
+            </Link>
+          ) : (
+            <span className="text-xs bg-emerald-950/80 text-emerald-300 px-2 py-0.5 rounded-md font-mono border border-emerald-500/30">
+              {settings.workspaceId}
+            </span>
+          )}
         </div>
       </div>
 

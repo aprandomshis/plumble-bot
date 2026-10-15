@@ -37,12 +37,31 @@ export default function DashboardPage() {
   const { showToast } = useToast();
 
   useEffect(() => {
+    const curSettings = Storage.getSettings();
     setRules(Storage.getRules());
     setReactions(Storage.getReactions());
     setChannels(Storage.getChannels());
     setLogs(Storage.getLogs());
-    setSettings(Storage.getSettings());
+    setSettings(curSettings);
     setMounted(true);
+
+    // Sync with server environment variables if available
+    fetch('/api/settings/sync')
+      .then((res) => res.json())
+      .then((serverData) => {
+        if (serverData.configuredOnServer && serverData.workspaceId) {
+          if (curSettings.workspaceId === 'ws_demo_98241' || !curSettings.workspaceId) {
+            const updated = {
+              ...curSettings,
+              workspaceId: serverData.workspaceId,
+              groqModel: serverData.groqModel || curSettings.groqModel,
+            };
+            setSettings(updated);
+            Storage.saveSettings(updated);
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const copyWebhookUrl = () => {
@@ -80,8 +99,35 @@ export default function DashboardPage() {
   const totalRepliesSent = rules.reduce((acc, r) => acc + (r.triggerCount || 0), 0);
   const totalReactionsPlaced = reactions.reduce((acc, r) => acc + (r.reactionCount || 0), 0);
 
+  const isDemo = settings.workspaceId === 'ws_demo_98241' || !settings.botToken;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Demo Warning Banner */}
+      {isDemo && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-amber-900/20 to-slate-900 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-amber-200">
+                You are currently in Demo Mode (Workspace: {settings.workspaceId})
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Connect your real Pumble workspace credentials and Groq key in Settings to automate your live team chats!
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/settings"
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold whitespace-nowrap self-start sm:self-auto transition-colors"
+          >
+            Connect My Details →
+          </Link>
+        </div>
+      )}
+
       {/* Top Banner / Hero */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900/60 via-slate-900 to-violet-950/60 border border-indigo-500/20 p-8">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
