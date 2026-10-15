@@ -9,8 +9,8 @@ import {
   PumbleChannel,
   ActivityLog,
   AccountSettings,
-} from '@/types/pumble';
 import { useToast } from '@/components/Toast';
+import { ConnectWorkspaceModal } from '@/components/ConnectWorkspaceModal';
 import {
   MessageSquareReply,
   SmilePlus,
@@ -36,19 +36,29 @@ export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const curSettings = Storage.getSettings();
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
+
+  const reloadData = () => {
     setRules(Storage.getRules());
     setReactions(Storage.getReactions());
     setChannels(Storage.getChannels());
     setLogs(Storage.getLogs());
-    setSettings(curSettings);
+    setSettings(Storage.getSettings());
+  };
+
+  useEffect(() => {
+    reloadData();
     setMounted(true);
+
+    const onUpdate = () => reloadData();
+    window.addEventListener('puble_settings_updated', onUpdate);
+    window.addEventListener('puble_channels_updated', onUpdate);
 
     // Sync with server environment variables if available
     fetch('/api/settings/sync')
       .then((res) => res.json())
       .then((serverData) => {
+        const curSettings = Storage.getSettings();
         if (serverData.configuredOnServer && serverData.workspaceId) {
           if (curSettings.workspaceId === 'ws_demo_98241' || !curSettings.workspaceId) {
             const updated = {
@@ -62,6 +72,11 @@ export default function DashboardPage() {
         }
       })
       .catch(() => {});
+
+    return () => {
+      window.removeEventListener('puble_settings_updated', onUpdate);
+      window.removeEventListener('puble_channels_updated', onUpdate);
+    };
   }, []);
 
   const copyWebhookUrl = () => {
@@ -119,14 +134,17 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <Link
-            href="/settings"
+          <button
+            onClick={() => setConnectModalOpen(true)}
             className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold whitespace-nowrap self-start sm:self-auto transition-colors"
           >
             Connect My Details →
-          </Link>
+          </button>
         </div>
       )}
+
+      {/* Connect Workspace Modal */}
+      <ConnectWorkspaceModal isOpen={connectModalOpen} onClose={() => setConnectModalOpen(false)} />
 
       {/* Top Banner / Hero */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-900/60 via-slate-900 to-violet-950/60 border border-indigo-500/20 p-8">

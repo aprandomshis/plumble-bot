@@ -9,10 +9,10 @@ import {
 
 export const DEFAULT_SETTINGS: AccountSettings = {
   botToken: '',
-  workspaceId: 'ws_demo_98241',
-  botName: 'PubleBot ⚡',
+  workspaceId: '',
+  botName: 'PlumbleBot ⚡',
   botAvatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=128&q=80',
-  signingSecret: 'sec_sample_webhook_token_9831',
+  signingSecret: '',
   isMasterBotActive: true,
   isAutoResponderActive: true,
   isAutoReactActive: true,
@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: AccountSettings = {
   groqApiKey: '',
   groqModel: 'llama-3.3-70b-versatile',
   groqSystemPrompt:
-    'You are PubleBot, an intelligent and friendly assistant for the team chat. Answer concisely (1-3 sentences), warmly, and helpfully.',
+    'You are PlumbleBot, an intelligent and friendly assistant for the team chat. Answer concisely (1-3 sentences), warmly, and helpfully.',
   enableAiResponses: true,
   enableAiReactions: true,
 };
@@ -326,8 +326,13 @@ export const Storage = {
   getReactions: (): AutoReactionRule[] => safeGet(KEYS.REACTIONS, DEFAULT_REACTION_RULES),
   saveReactions: (reactions: AutoReactionRule[]): void => safeSet(KEYS.REACTIONS, reactions),
 
-  getChannels: (): PumbleChannel[] => safeGet(KEYS.CHANNELS, DEFAULT_CHANNELS),
-  saveChannels: (channels: PumbleChannel[]): void => safeSet(KEYS.CHANNELS, channels),
+  getChannels: (): PumbleChannel[] => safeGet(KEYS.CHANNELS, []),
+  saveChannels: (channels: PumbleChannel[]): void => {
+    safeSet(KEYS.CHANNELS, channels);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('puble_channels_updated', { detail: channels }));
+    }
+  },
 
   getScheduled: (): ScheduledMessage[] => safeGet(KEYS.SCHEDULED, DEFAULT_SCHEDULED),
   saveScheduled: (scheduled: ScheduledMessage[]): void => safeSet(KEYS.SCHEDULED, scheduled),
@@ -345,7 +350,17 @@ export const Storage = {
   },
 
   getSettings: (): AccountSettings => safeGet(KEYS.SETTINGS, DEFAULT_SETTINGS),
-  saveSettings: (settings: AccountSettings): void => safeSet(KEYS.SETTINGS, settings),
+  saveSettings: (settings: AccountSettings): void => {
+    safeSet(KEYS.SETTINGS, settings);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('puble_settings_updated', { detail: settings }));
+    }
+  },
+
+  isConfigured: (): boolean => {
+    const s = Storage.getSettings();
+    return Boolean(s.botToken && s.workspaceId && s.workspaceId !== 'ws_demo_98241');
+  },
 
   resetToDefaults: (): void => {
     if (typeof window === 'undefined') return;
@@ -355,5 +370,6 @@ export const Storage = {
     localStorage.removeItem(KEYS.SCHEDULED);
     localStorage.removeItem(KEYS.LOGS);
     localStorage.removeItem(KEYS.SETTINGS);
+    window.dispatchEvent(new Event('puble_settings_updated'));
   },
 };
