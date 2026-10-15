@@ -34,7 +34,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Ignore unrelated projects in parent directory
+# Ignore unrelated files & projects in parent directory
 /anotely*
 /apcodesphere*
 /apcollection*
@@ -60,3 +60,4 @@ next-env.d.ts
 /urllite*
 /vpn*
 /ap.md
+/well.md

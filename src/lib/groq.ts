@@ -231,10 +231,18 @@ Respond ONLY with the emojis separated by space and NOTHING ELSE. Example: "🚀
     return { success: false, emojis: ['👍'], latencyMs: result.latencyMs };
   }
 
-  // Extract emojis from response
-  const emojiRegex =
-    /[\p{Extended_Pictographic}\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
-  const matches = result.content.match(emojiRegex);
+  // Extract emojis safely across all JS runtimes
+  let matches: string[] | null = null;
+  try {
+    const emojiRegex = new RegExp(
+      '[\\p{Extended_Pictographic}\\u{1F300}-\\u{1F9FF}\\u{2600}-\\u{26FF}\\u{2700}-\\u{27BF}]',
+      'gu'
+    );
+    matches = result.content.match(emojiRegex);
+  } catch {
+    const fallbackRegex = /[\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u26FF\u2700-\u27BF]/g;
+    matches = result.content.match(fallbackRegex);
+  }
 
   return {
     success: true,
